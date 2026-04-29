@@ -1,0 +1,28 @@
+---
+title: "Tourism in the Canary Islands, 2024"
+author: "Ilona"
+date: last-modified
+format:
+  html:
+    toc: true
+execute:
+  echo: false
+  warning: false
+---
+
+# Introduction
+Regular prose. Markdown **works** as _expected_.
+
+# Data
+```{r}
+library(dplyr)
+mtcars |> summarise(mean(mpg))
+```
+
+```{r}
+library(ggplot2)
+mtcars %>% 
+  ggplot(aes(x=mpg,y=hp))
+  geom_point()
+```
+

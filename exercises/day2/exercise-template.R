@@ -1,8 +1,8 @@
 # Day 2 · Exercise (guided)
 # Topic: Data wrangling with the tidyverse
-# Author: Your Name
-# GitHub: @yourhandle
-# Date: YYYY-MM-DD
+# Author: Ilona Maier
+# GitHub: @ilonamaier
+# Date: 2026-29-04
 
 library(tidyverse)
 library(here)
@@ -59,6 +59,30 @@ library(here)
 # on (geo, year). Use a left_join.
 
 # your code here
+
+source("datasets/download.R")
+
+library(dplyr)
+
+# Filter both tables to Spanish hotels in 2024:
+
+#   capacity:
+dat|>
+  filter(accomunit == "BEDPL",unit == "NR",nace_r2 == "I551",geo == "ES")
+
+#   nights:
+glimpse(manifest) #ERROR: The data is not downloaded correctly?
+manifest |>
+  filter(c_resid   == "TOTAL",unit == "NR",nace_r2 == "I551",geo == "ES")
+
+#The time column is named `TIME_PERIOD` in both files. Extract the
+# year with lubridate::year(TIME_PERIOD), keep only 2024, rename the
+# `values` column on each side (e.g. `nights`, `bed_places`) and join
+# on (geo, year). Use a left_join.
+
+dat$TIME_PERIOD|>
+  lubridate::year(TIME_PERIOD)
+
 
 
 # ---- 2. Engineer features ---------------------------------------------
