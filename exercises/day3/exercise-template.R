@@ -1,8 +1,8 @@
 # Day 3 · Exercise (graded)
 # Topic: Basic statistics with R
-# Author: Your Name
-# GitHub: @yourhandle
-# Date: YYYY-MM-DD
+# Author: Ilona Maier
+# GitHub: @ilonamaier
+# Date: 2026-05-29
 
 library(tidyverse)
 library(janitor)
@@ -15,18 +15,21 @@ library(here)
 # time column is `TIME_PERIOD`, the value column is `values`. Full
 # code reference is in `exercises/day2/exercise-template.R`.
 
+# Load hotel nights data
 nights <- read_csv(here("datasets", "raw", "eurostat-nights_monthly.csv")) |>
   filter(c_resid == "TOTAL", unit == "NR", nace_r2 == "I551") |>
   mutate(year = lubridate::year(TIME_PERIOD)) |>
   filter(year == 2024) |>
   select(geo, year, time = TIME_PERIOD, nights = values)
 
+# Load hotel capacity data
 capacity <- read_csv(here("datasets", "raw", "eurostat-capacity_annual.csv")) |>
   filter(accomunit == "BEDPL", unit == "NR", nace_r2 == "I551") |>
   mutate(year = lubridate::year(TIME_PERIOD)) |>
   filter(year == 2024) |>
   select(geo, year, bed_places = values)
 
+# Join both datasets and create occupancy index
 joined <- nights |>
   left_join(capacity, by = c("geo", "year")) |>
   mutate(occupancy_index = nights / bed_places)
@@ -49,7 +52,40 @@ hotels <- tibble(
   nights = c(12.5, 18.3, 9.8, 11.2, 6.4)
 )
 
-hotels
+# Create summary statistics by country
+summary_table <- joined |>
+  group_by(geo) |>
+  summarise(
+
+    # Count rows
+    n = n(),
+
+    # Statistics for nights
+    mean_nights = mean(nights, na.rm = TRUE),
+    sd_nights = sd(nights, na.rm = TRUE),
+    median_nights = median(nights, na.rm = TRUE),
+    q1_nights = quantile(nights, 0.25, na.rm = TRUE),
+    q3_nights = quantile(nights, 0.75, na.rm = TRUE),
+
+    # Statistics for occupancy index
+    mean_occ = mean(occupancy_index, na.rm = TRUE),
+    sd_occ = sd(occupancy_index, na.rm = TRUE),
+    median_occ = median(occupancy_index, na.rm = TRUE),
+    q1_occ = quantile(occupancy_index, 0.25, na.rm = TRUE),
+    q3_occ = quantile(occupancy_index, 0.75, na.rm = TRUE),
+
+    # Count missing values
+    missing_nights = sum(is.na(nights)),
+    missing_occ = sum(is.na(occupancy_index))
+  ) |>
+
+  # Keep countries with at least 6 months of data
+  filter(n >= 6) |>
+
+  # Sort by highest average nights
+  arrange(desc(mean_nights))
+
+summary_table
 
 
 # ---- 2. Cross-tabulation ----------------------------------------------
@@ -65,7 +101,43 @@ hotels
 
 # your code here
 
+# Load only domestic and foreign tourists
+residency_data <- read_csv(here("datasets", "raw", "eurostat-nights_monthly.csv")) |>
+  filter(
+    c_resid %in% c("DOM", "FOR"),
+    nace_r2 == "I551"
+  ) |>
+  mutate(year = lubridate::year(TIME_PERIOD)) |>
+  filter(year == 2024)
+
+# Sum nights by country and residency type
+cross_tab <- residency_data |>
+  group_by(geo, c_resid) |>
+  summarise(total_nights = sum(values, na.rm = TRUE)) |>
+  ungroup() |>
+
+  # Convert DOM and FOR into columns
+  pivot_wider(
+    names_from = c_resid,
+    values_from = total_nights
+  ) |>
+
+  # Calculate row percentages
+  mutate(
+    total = DOM + FOR,
+    dom_percent = 100 * DOM / total,
+    for_percent = 100 * FOR / total
+  ) |>
+
+  # Select some countries
+  filter(geo %in% c("ES", "FR", "DE", "IT", "PT", "BE")) |>
+  print()
+
 # your comment here
+
+# Portugal (PT) stands out because about 71% of hotel nights
+# come from foreign visitors. This suggests that Portugal is
+# highly dependent on international tourism.
 
 
 # ---- 3. Correlation ---------------------------------------------------
@@ -80,6 +152,33 @@ hotels
 
 # your code here
 
+# Create country-level indicators
+country_data <- joined |>
+  group_by(geo) |>
+  summarise(
+
+    # Total nights in 2024
+    annual_nights = sum(nights, na.rm = TRUE),
+
+    # Average bed places
+    bed_places = mean(bed_places, na.rm = TRUE),
+
+    # Nights per bed
+    nights_per_bed = annual_nights / bed_places
+  )
+
+# Compute correlation matrix
+correlation_matrix <- country_data |>
+  select(annual_nights, bed_places, nights_per_bed) |>
+  cor(use = "pairwise.complete.obs")
+
+correlation_matrix
+
+# Strongest correlation:
+# annual_nights and bed_places (r = 0.999)
+
+# Weakest correlation:
+# bed_places and nights_per_bed (r = 0.119)
 
 # ---- 4. Interpretation -------------------------------------------------
 # In 4-6 sentences, describe the strongest correlation you found:
@@ -88,3 +187,12 @@ hotels
 # covers how to test causal claims formally.
 
 # your comments here
+
+# The strongest correlation is between annual_nights and bed_places
+# (r = 0.999). The relationship is very strong and positive, meaning
+# countries with larger hotel capacity also tend to have more tourist
+# nights. This is reasonable because countries with strong tourism
+# sectors usually build more accommodation infrastructure. The weakest
+# relationship is between bed_places and nights_per_bed, which suggests
+# that having more hotel beds does not necessarily mean they are used
+# more efficiently.
